@@ -26,9 +26,8 @@ This project is a terminal-based **chat client** developed with Python. It not o
 ## 📥 Installation & Usage
 
 ```bash
-git clone https://github.com/yourusername/chat-client-command.git
-cd chat-client-command
-python main.py
+https://github.com/ColorlessKing-coder/Chat_CLI/blob/main/Listener.py
+python Listener.py
 ```
 
 ### Available Commands
