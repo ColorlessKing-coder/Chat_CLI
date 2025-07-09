@@ -4,6 +4,13 @@ from rich import print
 from datetime import datetime
 import base64
 import random
+from rich import print
+from rich.console import Console
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+from rich.live import Live
+from rich.text import Text
+from rich.prompt import Prompt
 
 class Listener:
     def __init__(self) -> None:
@@ -12,7 +19,8 @@ class Listener:
         self.encode = "utf-8"
         self.users_color = {}  # keys = username || values == colors
         self.colors = ["red", "green", "yellow", "blue", "magenta", "cyan"]
-
+        self.prompt = ""
+        self.console = Console()
     def assign_color(self, nickname):
         if nickname not in self.users_color:
             self.users_color[nickname] = random.choice(self.colors)
@@ -61,8 +69,10 @@ class Listener:
             self.assign_color(nickname)
             join_message = f"[{self.users_color[nickname]}]{nickname} has joined the chat.[/]"
             self.log_message(join_message)
-            self.broadcast(f"{join_message}", connection)
-            print(f"[green]{nickname} connected from {address[0]}:{address[1]}[/green]")
+            self.broadcast(f"{join_message}", connection)#Herkeze Kimlerin Katıldığını Belirtecek
+            
+            panel1 = Panel(f"[green]{nickname} : [white]Connected From[/white] [blink]{address[0]}:{address[1]}[/blink] [/green]", title="", subtitle="", border_style="white")
+            self.console.print(panel1)
 
             while True:
                 response_message = connection.recv(4096).decode().strip()
@@ -104,17 +114,24 @@ class Listener:
 
                 if response_message.lower() in ["exit", "q"]:
                     leave_message = f"[{self.users_color[nickname]}]{nickname} has left the chat.[/]"
+                    
                     self.log_message(leave_message)
                     self.broadcast(f"[yellow]{leave_message}[/yellow]", connection)
                     break
 
                 # Normal mesaj iletimi
                 full_message = f"[{self.users_color[nickname]}]{nickname}[/]: {response_message}"
+                
                 self.log_message(full_message)
                 self.broadcast(full_message, connection)
 
+                
+
+
         except Exception as e:
-            print(f"[red]Error handling client {address}:[/red] {e}")
+            panel1 = Panel(f"[red]Error handling client {address}:[/red] {e}" , style="red")
+            self.console.print(panel1)
+            
         finally:
             self.disconnect_client(connection)
 
@@ -123,7 +140,8 @@ class Listener:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
                 sock.bind((ip_address, port))
                 sock.listen()
-                print("[green]Server is listening for connections...[/green]")
+                panel1 = Panel("[blink][white]Server is listening for connections...[/white][/blink]", title="", subtitle="", border_style="green")
+                self.console.print(panel1)
 
                 while True:
                     connection, address = sock.accept()
@@ -135,18 +153,19 @@ class Listener:
     def disconnect_client(self, connection):
         nickname = self.clients.get(connection, "Unknown User")
         if nickname:
-            leave_message = f"{nickname} has left the chat."
-            self.log_message(leave_message)
-            print(f"[yellow]{leave_message}[/yellow]")
-            self.broadcast(f"[yellow]{leave_message}[/yellow]", connection)
-            del self.clients[connection]
-            connection.close()
+            leave_message = f"{nickname} : Has Left The Chat!!"
+            panel1 = Panel(leave_message,style="red")
+            self.log_message(leave_message)#Log File Dosyasında Mesaj Gözükür 
+            print(f"[yellow]{self.console.print(panel1)}[/yellow]")#Sadece Canlı Logda Gösterir
+            self.broadcast(f"[yellow]{leave_message}[/yellow]", connection)#Herkeze Mesajı Gönderir
+            del self.clients[connection]#Kullancı Bağlantıdan Silinir
+            connection.close()#Bağlantı Kapanır 
 
 
 def main():
     listener = Listener()
-    ip = "127.0.0.1"
-    port = 50001
+    ip = "192.168.1.230"
+    port = 10000
     listener.listen_for_connections(ip, port)
 
 if __name__ == "__main__":
