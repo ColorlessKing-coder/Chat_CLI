@@ -5,43 +5,26 @@ import os
 import platform
 import subprocess
 import base64
+from rich import print
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+from rich.live import Live
+from rich.text import Text
+from rich.prompt import Prompt
+import textwrap
 
 class Sender:
     def __init__(self) -> None:
+        self.console = Console()
+        self.prompt = "[bold red]<[/bold red][bold green]^[/bold green][bold red]>[/bold red] "
         self.connection = None
         self.ip_address = ""
         self.port = 0
         self.nickname = ""
         self.selected_color = "white"
-        self.colors_windows = {
-            "black": "0",
-            "blue": "1",
-            "green": "2",
-            "aqua": "3",
-            "red": "4",
-            "purple": "5",
-            "yellow": "6",
-            "white": "7",
-            "gray": "8",
-            "light_blue": "9",
-            "light_green": "A",
-            "light_aqua": "B",
-            "light_red": "C",
-            "light_purple": "D",
-            "light_yellow": "E",
-            "bright_white": "F"
-        }
-        self.colors_linux = {
-            "black":    "setaf 0",
-            "red":      "setaf 1",
-            "green":    "setaf 2",
-            "yellow":   "setaf 3",
-            "blue":     "setaf 4",
-            "purple":   "setaf 5",
-            "light_blue": "setaf 6",
-            "white":    "setaf 7"
-        }
-        self.encode = "utf8"
+       
     def upload(self, path):
         try:
             if os.path.exists(path):
@@ -64,6 +47,9 @@ class Sender:
             self.connection.send(self.nickname.encode())
         except Exception as e:
             print(f"[red]Connection Error:[/red] {e}")
+     
+
+
 
 #Serverdan Bilgi alırken İstemci Tarafından Mesajı send_message İle Gönderip
 # Serverdan Gelen Bilgiyide Recevie_message İle İşlemelisin 
@@ -71,41 +57,24 @@ class Sender:
         if self.connection:
             try:
                 while True:
-                    print("[red]<[/red]([green]**[/green])[red]>[/red]", end=' ')
-                    message = input()
+                    #panel_expand_true = Panel(message, expand=False)
+                    message = Prompt.ask(self.prompt)
+                    #self.console.print(panel_expand_true,justify="left")
                     
-
-
+                    
                     if message[0:8] == "<users>:":
                         command , receiver_name , content = message.split(maxsplit=2)#İl İki Değer Ayrılır Sonraki Deperler Tek Bir Değer Olarka Tutulur 
                         full_message = f"RECEIVER_MESSAGE_NAME {receiver_name} {content}"
                         self.connection.send(full_message.encode(self.encode)) #kullanarak, metni UTF-8 formatında bytes türüne dönüştürdük. Bu
                         print("Mesaj Başarıyla Gönderildis")
 
+
+
                     elif message.startswith("<users>"):
                         full_message = f'GET_USERS {self.nickname}'
                         self.connection.send(full_message.encode())
            
-                    elif message.startswith("<color>"):
-
-                        command = message.split()
-                        if len(command) == 2:
-                            selected_color = command[1].lower()
-                            if platform.system() == "Windows":
-                                if selected_color in self.colors_windows:
-                                    self.selected_color = selected_color
-                                    print(f'[green]{self.selected_color} is activated![/green]')
-                                    os.system(f'color {self.colors_windows[self.selected_color]}')
-                                else:
-                                    print('[red]Unsupported color![/red]')
-                            elif platform.system() == "Linux":
-                                if selected_color in self.colors_linux:
-                                    self.selected_color = selected_color
-                                    print(f'[green]{self.selected_color} is activated![/green]')
-                                    os.system(f"tput {self.colors_linux[self.selected_color]}")
-                                else:
-                                    print('[red]Unsupported color![/red]')
-                        continue
+                   
 
                     elif message.startswith("<cmd>"):
                         command = message.split(maxsplit=1)[1]
@@ -120,8 +89,12 @@ class Sender:
                             print("Error:\n", error)
                         process.terminate()
 
+
+
                     elif message.startswith("<cls>"):
                         os.system("cls" if os.name == "nt" else "clear")
+
+
 
                     elif message.startswith("<upload>"):
                         command, user_name, path = message.split()
@@ -136,8 +109,10 @@ class Sender:
                     elif message.lower().strip() in ["exit", "q"]:
                         self.connection.send('exit'.encode())
                         break
+
                     else:
-                        self.connection.sendall(message.encode())
+                        self.connection.sendall(message.encode())# Sendall İle Tüm Veri Gönderilir 
+                        
             except Exception as e:
                 print(f"[red]Error sending message:[/red] {e}")
             finally:
@@ -168,13 +143,12 @@ class Sender:
                             file_uploaded_received.write(file_content)
                     except Exception as e:
                         print("Error:", e)
-
-
-
-
-
                 else:
-                    print(response)  # Diğer mesajları direkt yazdır
+                    message = response
+                    print()           
+                    #self.console.print(message)  # Diğer mesajları direkt yazdır
+                    panel2 = Panel.fit(message, border_style="white")
+                    self.console.print(panel2)
         except Exception as e:
             print(f"[red]Error while receiving message: {e}[/red]")
             self.connection.close()
@@ -184,7 +158,7 @@ class Sender:
     def main(self):
         self.nickname = input("Please enter a nickname: ")
         self.ip_address = "127.0.0.1"
-        self.port = 50001
+        self.port = 10000
         self.connect_to_server()
 
         send_thread = threading.Thread(target=self.send_message)
