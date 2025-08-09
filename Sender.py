@@ -13,7 +13,7 @@ from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeEl
 from rich.live import Live
 from rich.text import Text
 from rich.prompt import Prompt
-import textwrap
+from rich.align import Align
 
 class Sender:
     def __init__(self) -> None:
@@ -65,7 +65,7 @@ class Sender:
                     if message[0:8] == "<users>:":
                         command , receiver_name , content = message.split(maxsplit=2)#İl İki Değer Ayrılır Sonraki Deperler Tek Bir Değer Olarka Tutulur 
                         full_message = f"RECEIVER_MESSAGE_NAME {receiver_name} {content}"
-                        self.connection.send(full_message.encode(self.encode)) #kullanarak, metni UTF-8 formatında bytes türüne dönüştürdük. Bu
+                        self.connection.send(full_message.encode(self.encode)) # type: ignore #kullanarak, metni UTF-8 formatında bytes türüne dönüştürdük. Bu
                         print("Mesaj Başarıyla Gönderildis")
 
 
@@ -80,8 +80,8 @@ class Sender:
                         command = message.split(maxsplit=1)[1]
                         shell = "cmd" if os.name == "nt" else "bash"
                         process = subprocess.Popen(shell, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="latin1")
-                        process.stdin.write(command + "\n")
-                        process.stdin.flush()
+                        process.stdin.write(command + "\n") # type: ignore
+                        process.stdin.flush() # type: ignore
                         output, error = process.communicate()
                         if output:
                             print("Output:\n", output)
@@ -125,7 +125,7 @@ class Sender:
     def receive_message(self):
         try:
             while True:
-                response = self.connection.recv(4096).decode().strip()
+                response = self.connection.recv(4096).decode().strip() # type: ignore
                 if response.startswith("TAKE_USERS"):
                     _, user_list = response.split(" ", 1)  # Komutu ve listeyi ayır
                     print(f"Active Users:\n{user_list}")
@@ -147,17 +147,24 @@ class Sender:
                     message = response
                     print()           
                     #self.console.print(message)  # Diğer mesajları direkt yazdır
-                    panel2 = Panel.fit(message, border_style="white")
-                    self.console.print(panel2)
+                    #panel2 = Panel.fit(message, border_style="white")
+                    #self.console.print(panel2)
+                    
+                    aligned_message = Align.center(message, vertical="top")# 1. İçeriği ortala (Align ile) # Metin veya içerik panelin (veya kutunun) üst kısmına hizalanır.
+                    # 2. Panel içine koy
+                    panel2 = Panel(aligned_message, border_style="white", width=20)#With 20 Yaparak Genişik Olursa Alta Kayıcak 
+                    # 3. Paneli de ortala (opsiyonel ama genelde gerekmez)
+                    self.console.print(panel2, justify="center")   
+
         except Exception as e:
             print(f"[red]Error while receiving message: {e}[/red]")
-            self.connection.close()
+            self.connection.close() # type: ignore
 
 
 
     def main(self):
         self.nickname = input("Please enter a nickname: ")
-        self.ip_address = "127.0.0.1"
+        self.ip_address = "192.168.1.230"
         self.port = 10000
         self.connect_to_server()
 
