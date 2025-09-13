@@ -34,12 +34,12 @@ python Listener.py
 
 | Command | Description |
 |--------|-------------|
-| `<users>` | Lists active users |
-| `<users>: <username> <message>` | Sends private message to a specific user |
-| `<color> <color_name>` | Changes terminal color (e.g., white, red, blue) |
-| `<cmd> <command>` | Executes a system command (`<cmd> dir` or `<cmd> ls`) |
-| `<cls>` | Clears the console |
-| `<upload> <username> <file_path>` | Sends a file to the specified user |
+| `users` | Lists active users |
+| `users: <username> <message>` | Sends private message to a specific user |
+| `color <color_name>` | Changes terminal color (e.g., white, red, blue) |
+| `cmd <command>` | Executes a system command (`<cmd> dir` or `<cmd> ls`) |
+| `cls` | Clears the console |
+| `upload <username> <file_path>` | Sends a file to the specified user |
 | `exit` or `q` | Exits the chat session |
 
 ## ⚙️ Development Notes
