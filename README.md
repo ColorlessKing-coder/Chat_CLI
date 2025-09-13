@@ -40,7 +40,10 @@ python Listener.py
 | `cmd <command>` | Executes a system command (`<cmd> dir` or `<cmd> ls`) |
 | `cls` | Clears the console |
 | `upload <username> <file_path>` | Sends a file to the specified user |
+| `start_video_record`| Video screen will start |
+| `stop_video_screen` | Video screen will stop |
 | `exit` or `q` | Exits the chat session |
+
 
 ## ⚙️ Development Notes
 
@@ -55,9 +58,4 @@ python Listener.py
 - Messages and files are not encrypted over the network.
 - For real-world deployments, implement `SSL`, `TLS`, or `SFTP` to ensure secure communication.
 
-## 📌 Roadmap
 
-- [ ] Encrypted communication (TLS/SSL)
-- [ ] User authentication
-- [ ] Optional GUI frontend
-- [ ] Command whitelist to restrict terminal access
