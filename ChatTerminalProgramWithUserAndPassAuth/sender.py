@@ -13,6 +13,9 @@ from rich.live import Live
 from rich.text import Text
 from rich.prompt import Prompt
 from rich.align import Align
+from rich.columns import Columns
+
+
 
 
 class Sender:
@@ -26,20 +29,33 @@ class Sender:
         self.selected_color = "white"
         self.password = ""
         self.encode = "utf-8"
+        self.active_sessions = []
+        self.active_users = []
+        self.receiving_file = True
+        self.file_obj = None
+        self.true_message = []
+        self.false_message = []
+        self.rich_prompt = Prompt()
+        self.general_panel_color = "light_sky_blue1"
+        self.special_message_panel_color = "medium_purple3"
+        self.colors = [
+            "red", "green", "yellow",
+            "blue", "magenta", "cyan", "white", "bright_red", "bright_green", "bright_yellow", "bright_blue",
+            "bright_magenta",
+            "bright_cyan", "orange1", "orange3", "dark_orange", "orange_red1", "gold1", "gold3", "gold4",
+            "deep_pink1", "deep_pink2", "deep_pink3", "hot_pink", "hot_pink2", "hot_pink3",
+            "violet", "violet_red", "medium_purple", "medium_purple2", "blue_violet",
+            "dodger_blue1", "dodger_blue2", "dodger_blue3", "sky_blue1", "sky_blue2", "sky_blue3",
+            "spring_green1", "spring_green2", "spring_green3", "sea_green1", "sea_green2", "sea_green3",
+            "turquoise2", "turquoise4", "dark_turquoise", "medium_turquoise",
+            "chartreuse1", "chartreuse2", "chartreuse3", "chartreuse4",
+            "aquamarine1", "aquamarine2", "aquamarine3", "pale_green1", "pale_green3",
+            "khaki1", "khaki3", "khaki4", "light_goldenrod1", "light_goldenrod3",
+            "salmon1", "indian_red", "orchid", "plum1", "plum3",
+            "slate_blue1", "slate_blue3", "steel_blue1", "steel_blue3"
+        ]
 
-    def upload(self, path):
-        try:
-            if os.path.exists(path):
-                print("File Exists!!")
-                with open(path, "rb") as upload_file:
-                    print(f"[green]File {path} found and being sent![/green]")
-                    return base64.b64encode(upload_file.read()).decode("utf-8")  # Encode and convert to string
-            else:
-                print(f"[red]File {path} not found![/red]")
-                return None
-        except Exception as e:
-            print(f"[red]Error while reading the file: {e}[/red]")
-            return None
+
 
     def start_http_server(self,file_name):
             # Python HTTP server başlat
@@ -52,8 +68,39 @@ class Sender:
         subprocess.Popen(server_cmd)
         print("[green]Linux HTTP server started![/green]")
 
+    def show_help(self):
+        """Rich ile güzel görünümlü help paneli gösterir."""
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("Command", style="bold cyan", no_wrap=True)
+        table.add_column("Description", style="white")
 
+        commands = [
+            ("help", "For Help Menu."),
+            ("exit / q", "Exit The Application."),
+            ("cls", "Clear The Console (Windows: cls, Unix: clear)."),
+            ("list_panel_colors", "That Command Will Show You All Supported Colors For Change To Panel's Colors. "),
+            ("panel_color <color>", "That Command Changed The Special Message Panel Color"),
+            ("users", "The Command Take Active Users From The Server ."),
+            ("users: <receiver> <message>", "Message To USer: Example; users: Ahmet Merhaba"),
+            ("select <k1> <k2> ...", "Bir veya birden fazla kullanıcıyla özel/çoklu oturum başlatma talebi gönderir."),
+            ("exit <users>", "Sunucuya özel oturumdan çıkış bildirir (istemci exit ile de tetiklenir)."),
+            ("cmd <komut>", "Yerel makinede komut çalıştırır (Windows: cmd, Unix: bash)."),
+            ("start_video_screen","Start a Video Recorder With HTTP Protocols"),
+            ("stop_video_screen", "That Command Will Stop Video Screen"),
+            ("upload <file_path> <file_name>", "How To Upload File to General Chat")
 
+        ]
+
+        for cmd, desc in commands:
+            table.add_row(cmd, desc)
+
+        footer = Text.assemble(("Not: ", "bold yellow"),
+        ("The execution of commands depends on the server’s protocol. Pay attention to the special message", "white"))
+        panel = Panel.fit(Align.center(table),title="[bold green]Commands — Help[/bold green]",border_style="bright_blue",padding=(1, 2))
+
+        # Konsola yazdır
+        self.console.print(panel)
+        self.console.print(Panel(footer, border_style="yellow", padding=(0, 1)))
 
     def start_ffmpeg(self,file_name):
              #FFmpeg başlat (video klasörüne stream.m3u8 kaydediyor)
@@ -94,24 +141,65 @@ class Sender:
         if self.connection:
             try:
                 while True:
-                    # panel_expand_true = Panel(message, expand=False)
                     message = Prompt.ask(self.prompt)
-                    # self.console.print(panel_expand_true,justify="left")
+                    if self.active_sessions:
+                        if message.lower() in ["return", "chat"] and self.active_sessions:
+                            #print(f"[yellow]Exiting private session with {', '.join(self.active_sessions)}[/yellow]")
+                            #Gerek Yok Artık Sağ Tarafta Genel Mesajda Gözüküceke
+                            for target in self.active_sessions:
+                                self.connection.send(f"EXIT_SESSION {target}".encode(self.encode))
+                            self.active_sessions = []  # session temizlenir
+                            continue
+                        if message.startswith("exit") and self.active_sessions:
+                            _,user_exit = message.split(" ", 1)
+                            #user_exit = ''.join(c for c in user_exit if c.isprintable()).strip()
+                            for c in ''.join(user_exit):
+                                if c.isprintable():
+                                    c.strip()
+                            if user_exit in self.active_sessions:
+                                self.active_sessions.remove(user_exit)
+                                self.connection.send(f"REMOVE_USER {user_exit}".encode(self.encode))
+                                text = f"The User Delete in Group Conversation {user_exit}"
+                                panel = Panel(Text.from_markup(text, justify="center"),border_style=self.special_message_panel_color, title=f"Colors Option ",padding=(0, 2), width=30)
+                                self.console.print(panel, justify="right")
 
-                    if message[0:8] == "users:":
-                        command, receiver_name, content = message.split(
-                            maxsplit=2)  # İl İki Değer Ayrılır Sonraki Deperler Tek Bir Değer Olarka Tutulur
+
+                    if message.startswith("panel_color"):
+                        _, panel_color = message.split(" ", 2)
+                        if panel_color in self.colors:
+                            text = f"The Panel Color Changed to {panel_color}"
+                            panel = Panel(Text.from_markup(text, justify="center"),border_style=self.special_message_panel_color, title=f"Colors Option ",padding=(0, 2),width=30)
+                            self.console.print(panel,justify="right")
+                            self.special_message_panel_color = panel_color
+                        else:
+                            text = f" Sorry Unknow Colors {panel_color}/n See All The Color (list_panel_colors)"
+                            panel = Panel(Text.from_markup(text, justify="center"),border_style=self.special_message_panel_color, title=f"Colors Option ",padding=(0, 2), width=30)
+                            self.console.print(panel,justify="right")
+                    if message.lower() == "list_panel_colors":
+                        text = '()'.join(self.colors)
+                        panel = Panel(Text.from_markup(text, justify="center"),border_style=self.special_message_panel_color, title=f"Colors Option ",padding=(0, 2), width=30)
+                        self.console.print(panel,justify="right")
+                    if message.startswith("select"):
+                        _, *users = message.split()  # select komutundan sonraki tüm kullanıcıları alır
+                        self.active_sessions = users  # doğrudan listeye ata
+
+                        # Tek mesajda tüm kullanıcıları gönder
+                        user_list_str = " ".join(users)## Ahmet Yusuf Şeklinde Göndericek
+                        self.connection.send(f"SELECTED_USER {user_list_str}".encode())
+                        #print(f"[green]Requesting private session with: {', '.join(self.active_sessions)}[/green]")
+                        #Buna Gerek Yok Şunalık
+                    if message[0:6] == "users:":
+                        command, receiver_name, content = message.split(maxsplit=2)  # İl İki Değer Ayrılır Sonraki Deperler Tek Bir Değer Olarka Tutulur
                         full_message = f"RECEIVER_MESSAGE_NAME {receiver_name} {content}"
-                        self.connection.send(full_message.encode(
-                            self.encode))  # type: ignore #kullanarak, metni UTF-8 formatında bytes türüne dönüştürdük. Bu
-                        print("Mesaj Başarıyla Gönderildis")
-                    elif message.startswith("users"):
+                        self.connection.send(full_message.encode(self.encode))
+
+                        text = "The Message has been sent."
+                        panel = Panel(Text(text, justify="center"), border_style=self.special_message_panel_color,title=f"Upload Alert", padding=(0, 2),width=30)
+                        self.console.print(panel, justify="right")
+                    if message.startswith("users"):
                         full_message = f'GET_USERS {self.nickname}'
                         self.connection.send(full_message.encode())
-
-
-
-                    elif message.startswith("cmd"):
+                    if message.startswith("cmd"):
                         try:
                             command = message.split(maxsplit=1)[1]  # cmd <komut>
                             # Windows ise cmd, değilse bash
@@ -126,9 +214,7 @@ class Sender:
                                 print(f"[red]Error:[/red]\n{error}")
                         except Exception as e:
                             print(f"[red]Command execution error:[/red] {e}")
-
-
-                    elif message.startswith("start_video_screen"):
+                    if message.startswith("start_video_screen"):
                         if os.name == "nt":
                             try:
                                 file_name = "video"
@@ -212,13 +298,7 @@ class Sender:
                                 print("[green]Linux FFmpeg was started![/green]")
                             except Exception as e:
                                 print("Error:", e)
-
-
-
-
-
-
-                    elif message.startswith("stop_video_screen"):
+                    if message.startswith("stop_video_screen"):
                         if os.name == "nt":
                             #shell Truda # tek string, pipe shell tarafından yorumlanır
                             nstat = subprocess.run(
@@ -310,27 +390,45 @@ class Sender:
                                     print("[red]Linux video screen stopped![/red]")
                                 except Exception as e:
                                     print("Error:", e)
-
-
-
-
-
-
-
-
-
-
-                    elif message.startswith("cls"):
+                    if message.startswith("cls"):
                         os.system("cls" if os.name == "nt" else "clear")
-                    elif message.startswith("upload"):
-                        command, user_name, path = message.split()
-                        content = self.upload(path)  # Upload Edilecek Veri Kontrol Ediliyor ve encode ediliyor
-                        if content:
-                            file_name = os.path.basename(path)
-                            upload_message = f"UPLOAD {user_name} {file_name} {content}"
+                    if message.startswith("help"):
+                        self.show_help()
+                        continue
+                    if message.startswith("upload"):
+                        try:
+                            _, directory, file_name = message.split(" ", 2)
+                            full_path = os.path.join(directory, file_name)
 
-                            self.connection.send(upload_message.encode())
-                    elif message.lower().strip() in ["exit", "q"]:
+                            if not os.path.exists(full_path):
+                                self.false_message.append("[red]The file does not exist! Please check the path.[/red]")
+                                continue
+                            size = os.path.getsize(full_path)
+                            self.true_message.append(f"[green]The file '{file_name}' exists. Sending To Server [The File Size:{size}][/green]")
+                            self.connection.send(f"U_START {directory} {file_name} {size}\n".encode(self.encode))#Dosya Bilgileri Gönderildi
+                            with open(full_path,"rb") as f:  # Dosya Açıldı Okunan Veriler Kontrollu Şekilde Gönderilicek
+                                while True:
+                                    chunk = f.read(4096)
+                                    if not chunk:
+                                        break
+                                    self.connection.sendall(chunk)
+
+                            #Mesaj Sağda Gözüksün Diye
+                            self.true_message.append(f"[bold green]File '{file_name}' successfully to Send Server [/bold green]")
+                            edited_text = Text.from_markup(" ".join(self.true_message), justify="center")  # Metini Editlemek İçin
+                            message = Align.center(edited_text, vertical="top")  # Konsola Hizalamak İçin
+                            panel_conf = Panel(message, border_style="orange1", title="File Uploading ...",width=30)  # Paneli Editlemek İçin
+                            self.console.print(panel_conf, justify="right")
+                            self.true_message.clear()
+
+                        except Exception as e:
+                            self.false_message.append(f"[red]Upload error:[/red] {e}")
+                            edited_text = Text.from_markup(" ".join(self.false_message), justify="center")  # Metini Editlemek İçin
+                            message = Align.center(edited_text, vertical="top")  # Konsola Hizalamak İçin
+                            panel_conf = Panel(message, border_style="orange1", title="File Uploading Failed",width=30)  # Paneli Editlemek İçin
+                            self.console.print(panel_conf, justify="right")
+                            self.false_message.clear()
+                    if message.lower().strip() in ["exit", "q"]:
                         self.connection.send('exit'.encode())
                         break
 
@@ -348,69 +446,105 @@ class Sender:
     def receive_message(self):
         try:
             while True:
-                try:
-                    response = self.connection.recv(4096)
-                    if not response:
-                        print("Server disconnected.")
-                        break
-                    response = response.decode(errors="ignore").strip()
-                except ConnectionResetError:
-                    print("Connection reset by server.")
-                    break
-
-                if response.startswith("TAKE_USERS"):
-                    _, user_list = response.split(" ", 1)  # Komutu ve listeyi ayır
-                    print(f"Active Users:\n{user_list}")
-
-
-                elif response.startswith("TAKE_SPECIAL_MESSAGE"):
-                    _, special_message = response.split(" ", 1)
-                    print(special_message)
-
-                elif response.startswith("TAKE_UPLOADED_DATA"):
                     try:
-                        _, file_name, file_content = response.split(maxsplit=2)
-                        file_content = base64.b64decode(file_content)  # Gelen içerik Base64 decode edilir
-                        with open(file_name, "wb") as file_uploaded_received:
-                            file_uploaded_received.write(file_content)
-                    except Exception as e:
-                        print("Error:", e)
-                else:
-                    message = response
-                    print()
-                    # self.console.print(message)  # Diğer mesajları direkt yazdır
-                    # panel2 = Panel.fit(message, border_style="white")
-                    # self.console.print(panel2)
+                        response = self.connection.recv(4096).decode(errors="ignore").strip()
+                        if not response:
+                            print("Server disconnected.")
+                            break
+                    except ConnectionResetError:
+                        print("Connection reset by server.")
+                        break
+                        #Çok Önemli Not Severddan Gelen Mesaj TAKE_USERS ile başladığından aynı anda active users panelide geliyor
+                        # İlk Once Kişiye Bağlantı İsteği Gönderildi Server Bağlantı Gönderdi Şimdi İşleyip Kullanıcıya Mesaj Atıcam Taki Exit Diyene Kadar
+                    if response.startswith("TAKE_USERS_SESSION"):
+                        _, user_connections = response.split(" ", 1)# 'user_connections' örnek: ["Yasir/Talha/Reyyan"]
+                        self.active_sessions = [user.strip() for user in user_connections.split("/")]
+                        #["Yasir","Reyyan","Talha"]
+                        #print(f"[green]Active session started with: {', '.join(self.active_sessions)}[/green]")
+                        #İstemcide Active User Geçtikten Sonra İsim Benzerliğinden Dolayı Active Users Geliyor Zaten O Sebeple Yukarıdakini Yazmaya Gerek Yok Ama Yazmak Gerekse Bilde Panel İle Sağ Tarafta Yazdırmayı Unutma
 
-                    aligned_message = Align.center(message,vertical="top")  # 1. İçeriği ortala (Align ile) # Metin veya içerik panelin (veya kutunun) üst kısmına hizalanır.
-                    panel2 = Panel(aligned_message, border_style="white",width=20)  # With 20 Yaparak Genişik Olursa Alta Kayıcak
-                    self.console.print(panel2, justify="center")
+
+                    if response.startswith("TAKE_USERS"):
+                        _, user_list = response.split(" ", 1)
+                        user_list = ''.join(c for c in user_list if c.isprintable()).strip()  # bazen strip bile göremeyebilir
+                        panel = Panel(Text(user_list, justify="center"),border_style=self.special_message_panel_color,title=f"The Active Users",padding=(0, 2),width=30)
+                        print()#Boşluk Olması Gerek Çünkü Panel Kayıyor
+                        self.console.print(panel,justify="right")
+                        continue
+
+
+                    if response.startswith("TAKE_SPECIAL_MESSAGE"):
+                        _, special_message = response.split(" ", 1)
+                        message = special_message.strip()
+                        print()#Boşluk Olması Gerek Çünkü Panel Kayıyor
+                        panel = Panel(Text.from_markup(message, justify="center"), border_style=self.special_message_panel_color,title=f"Upload Alert", padding=(0, 2),width=30)  ##Buradaki padding panelde hafif sol taraftaki boşlu kapatmıyor ama ortalıyor
+                        self.console.print(panel, justify="right")
+                        continue
+
+
+                    if response.startswith("UPLOAD_MESSAGE"):#Sade Kullanıcıya Gelen Mesaj Ekran Basılıyor
+                        _, question = response.split(maxsplit=1)#Yukarıda Zaten Decode Edildi
+                        #print(f"DEBUG FULL RESPONSE: {repr(question)}")  # repr ile mesajın tam olarak nasıl geldiği açık olarak gösterilir
+                        message = ''.join(c for c in question if c.isprintable()).strip()
+                        panel = Panel(Text(message, justify="center"),border_style=self.special_message_panel_color,title=f"Upload Alert",padding=(0, 2),width=30)  ##Buradaki padding panelde hafif sol taraftaki boşlu kapatmıyor ama ortalıyor
+                        self.console.print(panel, justify="right")
+
+
+                        answer = input("Please Answer The Question : ( Yes/Or Anything ) " )
+                        if answer.lower() == "yes":#Kullanıcı Yes Dediyse Server Yes Olanlara Tekrar Mesaj İleticek
+                            self.connection.send(answer.encode())#
+                        else:
+                            text = f"[red]You Don't Take The Upload![/red]"
+
+                            panel = Panel(Text(text, justify="center"),border_style=self.special_message_panel_color,title=f"Upload Warning",padding=(0, 2),width=30)
+                            self.console.print(panel, justify="right")
+                        continue
+
+
+                    if response.startswith("UPLOAD_FILE"):
+                        _, file_name = response.split(" ", 1)
+                        self.file_obj = open(file_name, "wb")
+                        # Sunucuya "hazırım" sinyali gönder
+                        self.connection.send(b"ready")# Burda Bana Verileri Gönder Diyorum
+                        while True:
+                            chunk = self.connection.recv(4096)
+                            if b"END" in chunk:
+                                chunk = chunk.replace(b"END", b"")
+                                self.file_obj.write(chunk)
+                                self.file_obj.close()
+                                self.receiving_file = False
+                                self.file_obj = None
+                                break
+
+                            self.file_obj.write(chunk)
+
+
+                    else:
+                        message = response
+                        print()
+
+                        aligned_message = Align.center(message, vertical="top")
+                        text = Panel(aligned_message, border_style=self.general_panel_color,width=20)  # With 20 Yaparak Genişik Olursa Alta Kayıcak
+                        self.console.print(text, justify="center")
 
         except Exception as e:
             print(f"[red]Error while receiving message: {e}[/red]")
             self.connection.close()  # type: ignore
 
-
-
-
-
-
-
     def main(self):
         self.nickname = input("Please enter a nickname: ")
         self.password = input("Please enter a password: ")
         self.ip_address = "127.0.0.1"
-        self.port = 45123
+        self.port = 10600
         self.connect_to_server()
 
-        send_thread = threading.Thread(target=self.send_message)
-        receive_thread = threading.Thread(target=self.receive_message)
-
-        send_thread.start()
+        receive_thread = threading.Thread(target=self.receive_message, daemon=True)
         receive_thread.start()
 
-        send_thread.join()
-        receive_thread.join()
+        send_thread = threading.Thread(target=self.send_message)
+        send_thread.start()
+
+        send_thread.join()  # kullanıcı çıkana kadar bekler
 
 
 if __name__ == "__main__":
