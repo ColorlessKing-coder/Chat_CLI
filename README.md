@@ -57,7 +57,6 @@ python Listener.py
 
 - Special communication protocols like `RECEIVER_MESSAGE_NAME`, `UPLOAD`, `TAKE_USERS`, `TAKE_UPLOADED_DATA` are used between clients.
 - File transfers are encoded in Base64 for safety and cross-platform compatibility.
-- Terminal manipulation is performed using `os.system()` and ANSI color codes.
 - Server-side implementation is required separately to support this client.
 
 ## 🛡️ Security Warning
