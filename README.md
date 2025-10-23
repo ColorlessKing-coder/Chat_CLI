@@ -5,15 +5,23 @@ This project is a terminal-based **chat client** developed with Python. It not o
 
 ## 🚀 Features
 
-- 📩 Real-time messaging (socket-based)
-- 📂 File transfer using Base64 (`<upload>` command)
-- 🧑‍💻 Execute terminal commands remotely (`<cmd>` command)
-- 🎨 Change terminal color (`<color>` command)
-- 👥 List active users (`<users>` command)
-- 💬 Send private messages to specific users (`<users>: <name> <message>`)
-- 🧹 Clear console (`<cls>`)
-- 💻 Cross-platform support (Windows and Linux)
-- 🔐 Secure communication via command validation
+## ⚙️ Features
+
+| Category | Description |
+|-----------|-------------|
+| 💬 **Messaging** | Real-time bidirectional chatting between users |
+| 👥 **Private Messages** | Send messages to specific users |
+| 🧑‍🤝‍🧑 **Group Chat** | Multi-user conversation support |
+| 🧱 **Thread-Safe Communication** | Lock mechanism to avoid data race |
+| 💻 **Remote Command Execution** | Run terminal commands remotely (`cmd <command>`) |
+| 📂 **File Uploads** | Send files to other users (`upload <user> <path>`) |
+| 🎨 **Color Themes** | Change text or panel colors dynamically |
+| ⚙️ **Panel Customization** | User list, status area, and colorized message feed |
+| 🧹 **Console Management** | Clear terminal easily (`cls`) |
+| 🔐 **Secure Command Validation** | Prevents malformed or unauthorized command execution |
+| 🪟 **Cross-Platform** | Works on Windows and Linux |
+
+---
 
 ## 🧱 Technologies Used
 
