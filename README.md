@@ -50,7 +50,12 @@ python Listener.py
 | `upload <username> <file_path>` | Sends a file to the specified user |
 | `start_video_record`| Video screen will start |
 | `stop_video_screen` | Video screen will stop |
-| `exit` or `q` | Exits the chat session |
+| `panel_color color` or `q` | Changes the color of the special message panel |
+| `help` | Displays the help menu |
+| `select k1 k2` | Starts a group chat with selected users |
+| `return ` or `q` | Exits the group chat and returns to the general chat  |
+| `exit k1` | Removes a user from a group chatt |
+
 
 
 ## ⚙️ Development Notes
